@@ -49,7 +49,7 @@ char default_table[]    = "logdata";
 String qquery = String("SELECT * FROM logger.logdata");
 
 ESP32_MySQL_Connection conn((Client *)&client);
-AutoOTA ota("4.0", "https://raw.githubusercontent.com/b33telgeuse/loggerStation/refs/heads/main/project.json");
+AutoOTA ota("4.1", "https://raw.githubusercontent.com/b33telgeuse/loggerStation/refs/heads/main/project.json");
 struct txPack
 {   
   uint32_t device;
@@ -66,23 +66,20 @@ void setup()
 {
   Serial.begin(115200);
   while (!Serial && millis() < 5000); // wait for serial port to connect
-
+  Serial.print("Version ");
+  Serial.println(ota.version());
  // ESP32_MYSQL_DISPLAY1("\nStarting Basic_Insert_ESP on", ARDUINO_BOARD);
-
-//   Begin WiFi section
- ESP32_MYSQL_DISPLAY1("Connecting to", ssid);
-
+  WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, pass);
 
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(500);
-    ESP32_MYSQL_DISPLAY0(".");
+    Serial.println(".");
   }
     Serial.println("Connected");
     Serial.println(WiFi.localIP());
-    Serial.print("Version ");
-    Serial.println(ota.version());
+
       String ver, notes;
     if (ota.checkUpdate(&ver, &notes)) {
         Serial.println(ver);
@@ -217,6 +214,10 @@ void loop()
       {
         ESP.restart(); 
       }
+      if(rst_cntr>50)
+      {
+        ESP.restart(); 
+      }
     }
     else
     {
@@ -227,14 +228,6 @@ void loop()
    // ESP32_MYSQL_DISPLAY("================================================");
   }
   delay(100);
-  Serial.print("...");
-   if (ota.checkUpdate())
-  {
-     ESP.restart();
-  }
-   if (ota.tick())
-   {
-        ESP.restart();
-    }
+  Serial.print(",");
 
 }
