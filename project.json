@@ -1,0 +1,17 @@
+{
+  "name": "loggerStation",
+  "about": "collecting data from loggers",
+  "version": "1.0",
+  "notes": "23.01.2025 under pressure",
+  "builds": [
+    {
+      "chipFamily": "ESP32",
+      "parts": [
+        {
+          "path": "https://raw.githubusercontent.com/GyverLibs/GyverHub-example/main/bin/firmware.bin",
+          "offset": 0
+        }
+      ]
+    }
+  ]
+}
