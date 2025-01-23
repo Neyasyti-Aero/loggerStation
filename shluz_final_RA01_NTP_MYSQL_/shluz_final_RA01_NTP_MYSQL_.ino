@@ -33,7 +33,7 @@
 #include <ESP32_MySQL.h>
 #include <WiFiUdp.h>
 WiFiUDP ntpUDP; //Объект ntp
-NTPClient timeClient(ntpUDP, "europe.pool.ntp.org", 3600, 60000); //Так-же можно более детально настроить пул и задержку передачи.
+//NTPClient timeClient(ntpUDP, "europe.pool.ntp.org", 3600, 60000); //Так-же можно более детально настроить пул и задержку передачи.
 #define ss 5
 #define rst 14 
 #define dio0 2
@@ -49,7 +49,7 @@ char default_table[]    = "logdata";
 String qquery = String("SELECT * FROM logger.logdata");
 
 ESP32_MySQL_Connection conn((Client *)&client);
-AutoOTA ota("1.0", "https://raw.githubusercontent.com/b33telgeuse/loggerStation/refs/heads/main/project.json");
+AutoOTA ota("3.2", "https://raw.githubusercontent.com/b33telgeuse/loggerStation/refs/heads/main/project.json");
 struct txPack
 {   
   uint32_t device;
@@ -85,7 +85,7 @@ void setup()
     if (ota.checkUpdate(&ver, &notes)) {
         Serial.println(ver);
         Serial.println(notes);
-        ota.update();
+        ota.updateNow();
     }
 
   // print out info about the connection:
@@ -105,8 +105,8 @@ void setup()
   LoRa.receive();
   LoRa.setCodingRate4(8);
   LoRa.enableCrc();
-      Serial.print("Version ");
-    Serial.println(ota.version());
+  Serial.print("Version ");
+  Serial.println(ota.version());
 }
 void insertData( uint32_t device_id, uint32_t msg_id, const char* time, float humidity, float temperature, float battery, int RSSII) {
  /* float prikol = random(100);
@@ -222,7 +222,7 @@ void loop()
   Serial.print(".");
    if (ota.tick())
    {
-        Serial.println((int)ota.getError());
+        ESP.restart();
     }
 
 }
