@@ -49,7 +49,7 @@ char default_table[]    = "logdata";
 String qquery = String("SELECT * FROM logger.logdata");
 
 ESP32_MySQL_Connection conn((Client *)&client);
-AutoOTA ota("3.5", "https://raw.githubusercontent.com/b33telgeuse/loggerStation/refs/heads/main/project.json");
+AutoOTA ota("3.7", "https://raw.githubusercontent.com/b33telgeuse/loggerStation/refs/heads/main/project.json");
 struct txPack
 {   
   uint32_t device;
@@ -176,6 +176,7 @@ void insertData( uint32_t device_id, uint32_t msg_id, const char* time, float hu
 
 }
 */
+int rst_cntr=0;
 void loop()
 {
   int packetSize = LoRa.parsePacket();
@@ -209,6 +210,11 @@ void loop()
      // runQuery();
       conn.close();                     // close the connection
       //ESP.restart();  
+      rst_cntr++;
+      if(rst_cntr>50)
+      {
+        ESP.restart(); 
+      }
     }
     else
     {
@@ -220,6 +226,10 @@ void loop()
   }
   delay(100);
   Serial.print("...");
+  if (ota.checkUpdate())
+  {
+     ESP.restart();
+  }
    if (ota.tick())
    {
         ESP.restart();
