@@ -79,6 +79,8 @@ void setup()
     delay(500);
     ESP32_MYSQL_DISPLAY0(".");
   }
+    Serial.println("Connected");
+    Serial.println(WiFi.localIP());
     Serial.print("Version ");
     Serial.println(ota.version());
       String ver, notes;
@@ -211,7 +213,7 @@ void loop()
       conn.close();                     // close the connection
       //ESP.restart();  
       rst_cntr++;
-      if(rst_cntr>50)
+      if(telem_packet.msg>50)
       {
         ESP.restart(); 
       }
@@ -226,7 +228,7 @@ void loop()
   }
   delay(100);
   Serial.print("...");
-  if (ota.checkUpdate())
+   if (ota.checkUpdate())
   {
      ESP.restart();
   }
