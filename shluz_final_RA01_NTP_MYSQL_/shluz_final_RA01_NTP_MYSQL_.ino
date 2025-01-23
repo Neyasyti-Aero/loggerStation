@@ -49,7 +49,7 @@ char default_table[]    = "logdata";
 String qquery = String("SELECT * FROM logger.logdata");
 
 ESP32_MySQL_Connection conn((Client *)&client);
-AutoOTA ota("3.7", "https://raw.githubusercontent.com/b33telgeuse/loggerStation/refs/heads/main/project.json");
+AutoOTA ota("3.8", "https://raw.githubusercontent.com/b33telgeuse/loggerStation/refs/heads/main/project.json");
 struct txPack
 {   
   uint32_t device;
@@ -126,7 +126,7 @@ void insertData( uint32_t device_id, uint32_t msg_id, const char* time, float hu
     ESP32_MYSQL_DISPLAY("Querying error");
     return;
   }
-  sprintf(query, "INSERT INTO test.logdata (device_id, msg_id, time, humidity, temperature, battery, rssi) VALUES ('%i', '%i', CURRENT_TIMESTAMP, '%f', '%f', '%f','%i')", device_id, msg_id, humidity, temperature, battery, RSSII);
+  sprintf(query, "INSERT INTO test.logdata (device_id, msg_id, time, humidity, temperature, battery, rssi, station_id) VALUES ('%i', '%i', CURRENT_TIMESTAMP, '%f', '%f', '%f','%i','%i')", device_id, msg_id, humidity, temperature, battery, RSSII, 10);
    // String g(query);
   ESP32_MySQL_Query query_memm = ESP32_MySQL_Query(&conn);
   if ( !query_memm.execute(query) )
