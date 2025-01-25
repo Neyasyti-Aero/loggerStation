@@ -1,7 +1,7 @@
 {
   "name": "loggerStation",
   "about": "collecting data from loggers",
-  "version": "4.5",
+  "version": "4.6",
   "notes": "24.01.2025ss under pressure",
   "builds": [
     {

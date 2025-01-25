@@ -1,10 +1,10 @@
-  /*
-   ESP32_MySQL - An optimized library for ESP32 to directly connect and execute SQL to MySQL database without intermediary.
+/*
+  ESP32_MySQL - An optimized library for ESP32 to directly connect and execute SQL to MySQL database without intermediary.
 
-   Copyright (c) 2024 Syafiqlim
+  Copyright (c) 2024 Syafiqlim
 
-   This software is released under the MIT License.
-   https://opensource.org/licenses/MIT
+  This software is released under the MIT License.
+  https://opensource.org/licenses/MIT
 */
 #include <Arduino.h>
 #include <AutoOTA.h>
@@ -35,7 +35,7 @@
 //WiFiUDP ntpUDP; //Объект ntp
 //NTPClient timeClient(ntpUDP, "europe.pool.ntp.org", 3600, 60000); //Так-же можно более детально настроить пул и задержку передачи.
 #define ss 5
-#define rst 14 
+#define rst 14
 #define dio0 2
 #define ESP32_MYSQL_DEBUG_PORT      Serial
 // Debug Level from 0 to 4
@@ -49,9 +49,9 @@ char default_table[]    = "logdata";
 String qquery = String("SELECT * FROM logger.logdata");
 
 ESP32_MySQL_Connection conn((Client *)&client);
-AutoOTA ota("4.5", "https://raw.githubusercontent.com/b33telgeuse/loggerStation/refs/heads/main/project.json");
+AutoOTA ota("4.6", "https://raw.githubusercontent.com/b33telgeuse/loggerStation/refs/heads/main/project.json");
 struct txPack
-{   
+{
   uint32_t device;
   uint32_t msg;
   float hum;
@@ -59,7 +59,7 @@ struct txPack
   float pressr;
   float voltage;
 } telem_packet;
-float bat=4.1;
+float bat = 4.1;
 ESP32_MySQL_Query sql_query = ESP32_MySQL_Query(&conn);
 
 void setup()
@@ -68,10 +68,10 @@ void setup()
   while (!Serial && millis() < 5000); // wait for serial port to connect
   Serial.print("Version ");
   Serial.println(ota.version());
- // ESP32_MYSQL_DISPLAY1("\nStarting Basic_Insert_ESP on", ARDUINO_BOARD);
+  // ESP32_MYSQL_DISPLAY1("\nStarting Basic_Insert_ESP on", ARDUINO_BOARD);
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, pass);
-  int cntr=0;
+  int cntr = 0;
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(500);
@@ -81,21 +81,22 @@ void setup()
     {
       ESP.restart();
     }
-    
-  }
-    Serial.println("Connected");
-    Serial.println(WiFi.localIP());
 
-      String ver, notes;
-    if (ota.checkUpdate(&ver, &notes)) {
-        Serial.println(ver);
-        Serial.println(notes);
-        ota.updateNow();
-    }
-    cntr=0;
+  }
+  Serial.println("Connected");
+  Serial.println(WiFi.localIP());
+
+  String ver, notes;
+  if (ota.checkUpdate(&ver, &notes)) {
+    Serial.println(ver);
+    Serial.println(notes);
+    ota.updateNow();
+  }
+
+  cntr = 0;
 
   // print out info about the connection:
- ESP32_MYSQL_DISPLAY1("Connected to network. My IP address is:", WiFi.localIP());
+  ESP32_MYSQL_DISPLAY1("Connected to network. My IP address is:", WiFi.localIP());
 
   ESP32_MYSQL_DISPLAY3("Connecting to SQL Server @", server, ", Port =", server_port);
   ESP32_MYSQL_DISPLAY5("User =", user, ", PW =", password, ", DB =", default_database);
@@ -104,10 +105,27 @@ void setup()
   while (!LoRa.begin(433E6)) {
     Serial.println(".");
     delay(500);
-        if (cntr > 200)
+    cntr++;
+    if (cntr > 20)
     {
+      if (conn.connectNonBlocking(server, server_port, user, password) != RESULT_FAIL)
+      {
+        delay(500);
+        insertData(0, 0, "CURRENT_TIMESTAMP", 0, 0, 0, 0);
+        // runQuery();
+        conn.close();                     // close the connection
+        //ESP.restart();
+      }
+      else
+      {
+        ESP32_MYSQL_DISPLAY("\nConnect failed. Trying again on next iteration.");
+        
+      }
+      // ESP32_MYSQL_DISPLAY("\nSleeping...");
+      // ESP32_MYSQL_DISPLAY("================================================");
       ESP.restart();
     }
+     
   }
   LoRa.setSyncWord(0x12);
   LoRa.setSpreadingFactor(12);
@@ -115,15 +133,16 @@ void setup()
   LoRa.receive();
   LoRa.setCodingRate4(8);
   LoRa.enableCrc();
+
 }
 void insertData( uint32_t device_id, uint32_t msg_id, const char* time, float humidity, float temperature, float battery, int RSSII) {
- /* float prikol = random(100);
-  prikol = prikol/100000.0;
-  Serial.println(prikol,5);
-  
-  bat=bat-abs(prikol);
-  temperature=temperature+prikol*500.0;
-  humidity=humidity+prikol*1000.0;
+  /* float prikol = random(100);
+    prikol = prikol/100000.0;
+    Serial.println(prikol,5);
+
+    bat=bat-abs(prikol);
+    temperature=temperature+prikol*500.0;
+    humidity=humidity+prikol*1000.0;
   */
   char query[256];
   sprintf(query, "INSERT INTO logger.logdata (device_id, msg_id, time, humidity, temperature, battery) VALUES ('%i', '%i', CURRENT_TIMESTAMP, '%f', '%f', '%f')", device_id, msg_id, humidity, temperature, battery);
@@ -131,11 +150,12 @@ void insertData( uint32_t device_id, uint32_t msg_id, const char* time, float hu
   ESP32_MySQL_Query query_mem = ESP32_MySQL_Query(&conn);
   if ( !query_mem.execute(query) )
   {
+    Serial.println("here");
     ESP32_MYSQL_DISPLAY("Querying error");
     return;
   }
-  sprintf(query, "INSERT INTO test.logdata (device_id, msg_id, time, humidity, temperature, battery, rssi, station_id) VALUES ('%i', '%i', CURRENT_TIMESTAMP, '%f', '%f', '%f','%i','%i')", device_id, msg_id, humidity, temperature, battery, RSSII, 12);
-   // String g(query);
+  sprintf(query, "INSERT INTO test.logdata (device_id, msg_id, time, humidity, temperature, battery, rssi, station_id) VALUES ('%i', '%i', CURRENT_TIMESTAMP, '%f', '%f', '%f','%i','%i')", device_id, msg_id, humidity, temperature, battery, RSSII, 32);
+  // String g(query);
   ESP32_MySQL_Query query_memm = ESP32_MySQL_Query(&conn);
   if ( !query_memm.execute(query) )
   {
@@ -144,9 +164,9 @@ void insertData( uint32_t device_id, uint32_t msg_id, const char* time, float hu
   }
 }
 /*void runQuery()
-{
+  {
 
-//  ESP32_MySQL_Query query_mem = ESP32_MySQL_Query(&conn);
+  //  ESP32_MySQL_Query query_mem = ESP32_MySQL_Query(&conn);
 
   // Execute the query
   ESP32_MYSQL_DISPLAY(qquery);
@@ -182,9 +202,9 @@ void insertData( uint32_t device_id, uint32_t msg_id, const char* time, float hu
 
   }
 
-}
+  }
 */
-int rst_cntr=0;
+int rst_cntr = 0;
 void loop()
 {
   int packetSize = LoRa.parsePacket();
@@ -195,7 +215,7 @@ void loop()
     int k = 0;
     while (LoRa.available())
     {
-      
+
       bufferBytes[k] = LoRa.read();
       Serial.println(bufferBytes[k]);
       k++;
@@ -203,9 +223,9 @@ void loop()
     memcpy(&telem_packet, &bufferBytes, 24);
     // выводим RSSI пакета
     Serial.print("' with RSSI ");
-  // Serial.println(LoRa.packetRssi());
-   // ESP32_MYSQL_DISPLAY("Connecting...");
- //   timeClient.update();
+    // Serial.println(LoRa.packetRssi());
+    // ESP32_MYSQL_DISPLAY("Connecting...");
+    //   timeClient.update();
     Serial.println(telem_packet.device);
     Serial.println(telem_packet.msg);
     Serial.println(telem_packet.hum);
@@ -215,30 +235,30 @@ void loop()
     {
       delay(500);
       insertData(telem_packet.device, telem_packet.msg, "CURRENT_TIMESTAMP", telem_packet.hum, telem_packet.tempp, telem_packet.voltage, LoRa.packetRssi());
-     // runQuery();
+      // runQuery();
       conn.close();                     // close the connection
-      //ESP.restart();  
+      //ESP.restart();
       rst_cntr++;
-      if(telem_packet.msg>50)
+      if (telem_packet.msg > 50)
       {
-        ESP.restart(); 
+        ESP.restart();
       }
-      if(rst_cntr>50)
+      if (rst_cntr > 50)
       {
-        ESP.restart(); 
+        ESP.restart();
       }
     }
     else
     {
       ESP32_MYSQL_DISPLAY("\nConnect failed. Trying again on next iteration.");
-     // ESP.restart();  
+      // ESP.restart();
     }
-   // ESP32_MYSQL_DISPLAY("\nSleeping...");
-   // ESP32_MYSQL_DISPLAY("================================================");
+    // ESP32_MYSQL_DISPLAY("\nSleeping...");
+    // ESP32_MYSQL_DISPLAY("================================================");
   }
   delay(100);
   Serial.print(".");
-      if (ota.tick()) {
-        Serial.println((int)ota.getError());
-    }
+  if (ota.tick()) {
+    Serial.println((int)ota.getError());
+  }
 }
