@@ -1,4 +1,4 @@
-/*
+  /*
    ESP32_MySQL - An optimized library for ESP32 to directly connect and execute SQL to MySQL database without intermediary.
 
    Copyright (c) 2024 Syafiqlim
@@ -49,7 +49,7 @@ char default_table[]    = "logdata";
 String qquery = String("SELECT * FROM logger.logdata");
 
 ESP32_MySQL_Connection conn((Client *)&client);
-AutoOTA ota("4.3", "https://raw.githubusercontent.com/b33telgeuse/loggerStation/refs/heads/main/project.json");
+AutoOTA ota("4.5", "https://raw.githubusercontent.com/b33telgeuse/loggerStation/refs/heads/main/project.json");
 struct txPack
 {   
   uint32_t device;
@@ -71,11 +71,17 @@ void setup()
  // ESP32_MYSQL_DISPLAY1("\nStarting Basic_Insert_ESP on", ARDUINO_BOARD);
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, pass);
-
+  int cntr=0;
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(500);
     Serial.println(".");
+    cntr++;
+    if (cntr > 200)
+    {
+      ESP.restart();
+    }
+    
   }
     Serial.println("Connected");
     Serial.println(WiFi.localIP());
@@ -86,6 +92,7 @@ void setup()
         Serial.println(notes);
         ota.updateNow();
     }
+    cntr=0;
 
   // print out info about the connection:
  ESP32_MYSQL_DISPLAY1("Connected to network. My IP address is:", WiFi.localIP());
@@ -97,6 +104,10 @@ void setup()
   while (!LoRa.begin(433E6)) {
     Serial.println(".");
     delay(500);
+        if (cntr > 200)
+    {
+      ESP.restart();
+    }
   }
   LoRa.setSyncWord(0x12);
   LoRa.setSpreadingFactor(12);
@@ -123,7 +134,7 @@ void insertData( uint32_t device_id, uint32_t msg_id, const char* time, float hu
     ESP32_MYSQL_DISPLAY("Querying error");
     return;
   }
-  sprintf(query, "INSERT INTO test.logdata (device_id, msg_id, time, humidity, temperature, battery, rssi, station_id) VALUES ('%i', '%i', CURRENT_TIMESTAMP, '%f', '%f', '%f','%i','%i')", device_id, msg_id, humidity, temperature, battery, RSSII, 10);
+  sprintf(query, "INSERT INTO test.logdata (device_id, msg_id, time, humidity, temperature, battery, rssi, station_id) VALUES ('%i', '%i', CURRENT_TIMESTAMP, '%f', '%f', '%f','%i','%i')", device_id, msg_id, humidity, temperature, battery, RSSII, 12);
    // String g(query);
   ESP32_MySQL_Query query_memm = ESP32_MySQL_Query(&conn);
   if ( !query_memm.execute(query) )

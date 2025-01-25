@@ -1,8 +1,8 @@
 {
   "name": "loggerStation",
   "about": "collecting data from loggers",
-  "version": "4.3",
-  "notes": "23.01.2025ss under pressure",
+  "version": "4.5",
+  "notes": "24.01.2025ss under pressure",
   "builds": [
     {
       "chipFamily": "ESP32",
