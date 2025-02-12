@@ -119,13 +119,13 @@ void setup()
       else
       {
         ESP32_MYSQL_DISPLAY("\nConnect failed. Trying again on next iteration.");
-        
+
       }
       // ESP32_MYSQL_DISPLAY("\nSleeping...");
       // ESP32_MYSQL_DISPLAY("================================================");
       ESP.restart();
     }
-     
+
   }
   LoRa.setSyncWord(0x12);
   LoRa.setSpreadingFactor(12);
@@ -135,6 +135,8 @@ void setup()
   LoRa.enableCrc();
 
 }
+
+
 void insertData( uint32_t device_id, uint32_t msg_id, const char* time, float humidity, float temperature, float battery, int RSSII) {
   /* float prikol = random(100);
     prikol = prikol/100000.0;
@@ -152,14 +154,21 @@ void insertData( uint32_t device_id, uint32_t msg_id, const char* time, float hu
   {
     Serial.println("here");
     ESP32_MYSQL_DISPLAY("Querying error");
+    ESP.restart();
     return;
   }
-  sprintf(query, "INSERT INTO test.logdata (device_id, msg_id, time, humidity, temperature, battery, rssi, station_id) VALUES ('%i', '%i', CURRENT_TIMESTAMP, '%f', '%f', '%f','%i','%i')", device_id, msg_id, humidity, temperature, battery, RSSII, 32);
+  uint32_t chipId = 0;
+
+  for (int i = 0; i < 17; i = i + 8) {
+    chipId |= ((ESP.getEfuseMac() >> (40 - i)) & 0xff) << i;
+  }
+  sprintf(query, "INSERT INTO test.logdata (device_id, msg_id, time, humidity, temperature, battery, rssi, station_id, chip_id) VALUES ('%i', '%i', CURRENT_TIMESTAMP, '%f', '%f', '%f','%i','%i','%i')", device_id, msg_id, humidity, temperature, battery, RSSII, 32, chipId);
   // String g(query);
   ESP32_MySQL_Query query_memm = ESP32_MySQL_Query(&conn);
   if ( !query_memm.execute(query) )
   {
     ESP32_MYSQL_DISPLAY("Querying error");
+    ESP.restart();
     return;
   }
 }
@@ -207,6 +216,10 @@ void insertData( uint32_t device_id, uint32_t msg_id, const char* time, float hu
 int rst_cntr = 0;
 void loop()
 {
+  if (WiFi.status() != WL_CONNECTED)
+  {
+    ESP.restart();
+  }
   int packetSize = LoRa.parsePacket();
   if (packetSize) {
     // выводим сообщение о получении пакета
@@ -239,22 +252,13 @@ void loop()
       conn.close();                     // close the connection
       //ESP.restart();
       rst_cntr++;
-      if (telem_packet.msg > 50)
-      {
-        ESP.restart();
-      }
-      if (rst_cntr > 50)
-      {
-        ESP.restart();
-      }
     }
     else
     {
       ESP32_MYSQL_DISPLAY("\nConnect failed. Trying again on next iteration.");
-      // ESP.restart();
+      ESP.restart();
     }
-    // ESP32_MYSQL_DISPLAY("\nSleeping...");
-    // ESP32_MYSQL_DISPLAY("================================================");
+
   }
   delay(100);
   Serial.print(".");
