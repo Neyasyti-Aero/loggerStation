@@ -80,6 +80,7 @@ bool ESP32_MySQL_Connection::connect(const char *hostname, const uint16_t& port,
     if (connected != SUCCESS)
     {
       ESP32_MYSQL_LOGDEBUG1("Can't connect. Retry #", retries);
+      close();
       delay(CONNECT_DELAY_MS);
     }
     else
@@ -89,13 +90,17 @@ bool ESP32_MySQL_Connection::connect(const char *hostname, const uint16_t& port,
   }
 
   if (connected != SUCCESS)
+  {
+    close();
     return false;
+  }
 
   ESP32_MYSQL_LOGINFO("Connect OK. Try reading packets");
 
   if ( !read_packet() )
   {
     ESP32_MYSQL_LOGERROR("Can't connect. Error reading packets");
+    close();
     return false;
   }
 
@@ -110,10 +115,12 @@ bool ESP32_MySQL_Connection::connect(const char *hostname, const uint16_t& port,
   if ( !read_packet() )
   {
     ESP32_MYSQL_LOGERROR("Can't connect. Error reading auth packets");
+    close();
   }
 	else if (get_packet_type() != ESP32_MYSQL_OK_PACKET)
   {
     parse_error_packet();
+    close();
   }
   else
   {
@@ -165,6 +172,7 @@ Connection_Result ESP32_MySQL_Connection::connectNonBlocking(const char *hostnam
       else
       {
         ESP32_MYSQL_LOGDEBUG1("Can't connect. Retry #", retries);
+        close();
       }     
     }
     else
@@ -175,13 +183,17 @@ Connection_Result ESP32_MySQL_Connection::connectNonBlocking(const char *hostnam
   }
 
   if (connected != SUCCESS)
+  {
+    close();
     return RESULT_FAIL;
+  }
 
   ESP32_MYSQL_LOGINFO("Connect OK. Try reading packets");
 
   if ( !read_packet() )
   {
     ESP32_MYSQL_LOGERROR("Can't connect. Error reading packets");
+    close();
     return RESULT_FAIL;
   }
 
@@ -195,10 +207,12 @@ Connection_Result ESP32_MySQL_Connection::connectNonBlocking(const char *hostnam
    
   if ( !read_packet() )
   {
+    close();
     ESP32_MYSQL_LOGERROR("Can't connect. Error reading auth packets");
   }
 	else if (get_packet_type() != ESP32_MYSQL_OK_PACKET)
   {
+    close();
     parse_error_packet();
   }
   else
