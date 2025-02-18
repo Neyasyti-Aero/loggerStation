@@ -149,7 +149,7 @@ void HandleWiFiDisconnected()
     delay(100);
     Serial.print(".");
     cntr++;
-    if (cntr > 600)
+    if (cntr > 1800)
     {
       Serial.println("\r\nCan't connect to WiFi network. ESP is about to be restarted\r\n");
       ESP.restart();
@@ -192,7 +192,7 @@ bool DetectTenda()
 {
   HTTPClient http;
 
-  // Tenda
+  // Tenda 4G185
   http.begin("http://192.168.0.1/goform/goform_get_cmd_process?multi_data=1&cmd=modem_main_state%2Csignalbar%2Cnetwork_type%2Cnv_rsrq");
 
   // Send HTTP GET request
@@ -219,6 +219,41 @@ bool DetectTenda()
   return true;
 }
 
+// Detect MIFI 4G
+bool DetectMIFI()
+{
+  HTTPClient http;
+  WiFiClient client;
+
+  http.begin(client, "http://192.168.100.1/himiapi/json");
+
+  // Body to send with HTTP POST
+  String httpRequestData = String("{\"cmdid\":\"getconfig\",\"sessionId\":null}");
+
+  // Send HTTP POST request
+  int httpPostResponseCode = http.POST(httpRequestData);
+
+  if (httpPostResponseCode == 200)
+  {
+    ESP32_MYSQL_DISPLAY1("Identified MIFI\r\nHTTP Response code:", httpPostResponseCode);
+    String payload = http.getString();
+    Serial.println(payload);
+  }
+  else
+  {
+    ESP32_MYSQL_DISPLAY1("Failed to identify MIFI\r\nHTTP Response code:", httpPostResponseCode);
+    String payload = http.getString();
+    Serial.println(payload);
+    http.end();
+    return false;
+  }
+
+  // Free resources
+  http.end();
+
+  return true;
+}
+
 void HandleDatabaseIssue()
 {
   ESP32_MYSQL_DISPLAY0("\r\nDatabase issue. Router is about to be restarted\r\n");
@@ -226,6 +261,7 @@ void HandleDatabaseIssue()
   // Identify router type
   HTTPClient http;
   WiFiClient client;
+  String httpRequestData;
 
   if (DetectOlaxMT10())
   {
@@ -233,7 +269,7 @@ void HandleDatabaseIssue()
     http.begin(client, "http://192.168.0.1/reqproc/proc_post");
 
     // Body to send with HTTP POST
-    String httpRequestData = "goformId=REBOOT_DEVICE";
+    httpRequestData = "goformId=REBOOT_DEVICE";
   }
   else if (DetectTenda())
   {
@@ -241,7 +277,34 @@ void HandleDatabaseIssue()
     http.begin(client, "http://192.168.0.1/goform/goform_set_cmd_process");
 
     // Body to send with HTTP POST
-    String httpRequestData = "goformId=REBOOT_DEVICE";
+    httpRequestData = "goformId=REBOOT_DEVICE";
+  }
+  else if (DetectMIFI())
+  {
+    // login
+    http.begin(client, "http://192.168.100.1/himiapi/json");
+    // Body to send with HTTP POST
+    httpRequestData = "{\"cmdid\":\"login\",\"username\":\"admin\",\"password\":\"admin\",\"sessionId\":null}";
+
+    int httpPostResponseCode = http.POST(httpRequestData);
+    ESP32_MYSQL_DISPLAY1("LogIn Response code:", httpPostResponseCode);
+    String payload = http.getString();
+    Serial.println(payload);
+    if (payload.length() < 48)
+    {
+      ESP32_MYSQL_DISPLAY1("Error, too short payload:", payload.length());
+      http.end();
+      return;
+    }
+    // {"session":"a3777608-f197-472c-970a-3036831cf5f6","reply":"ok"}
+    // parse session id
+    String sessionId = payload.substring(12, 48);
+
+    http.end();
+    http.begin(client, "http://192.168.100.1/himiapi/json");
+
+    httpRequestData = String("{cmdid: \"rebootcmd\", params: \"reboot\", sessionId: \"") + sessionId + String("\"}");
+    Serial.println(httpRequestData);
   }
   else
   {
@@ -253,12 +316,10 @@ void HandleDatabaseIssue()
 
   // Send HTTP POST request
   int httpPostResponseCode = http.POST(httpRequestData);
-
   ESP32_MYSQL_DISPLAY1("\r\nReboot requested for identified router\r\nHTTP Response code:", httpPostResponseCode);
 
   // Free resources
   http.end();
-
 }
 
 void HandleLoraIssue()
