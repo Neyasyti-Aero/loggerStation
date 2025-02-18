@@ -303,8 +303,6 @@ void HandleDatabaseIssue()
   else
   {
     ESP32_MYSQL_DISPLAY0("Failed to identify router type. Impossible to reboot");
-    // Free resources
-    http.end();
     return;
   }
 
