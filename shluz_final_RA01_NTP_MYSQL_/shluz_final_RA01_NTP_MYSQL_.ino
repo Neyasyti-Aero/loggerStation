@@ -157,13 +157,11 @@ void HandleWiFiDisconnected()
   }
 }
 
-void HandleDatabaseIssue()
+bool DetectOlaxMT10()
 {
-  ESP32_MYSQL_DISPLAY0("\r\nDatabase issue. Router is about to be restarted\r\n");
-
-  // Identify router type
   HTTPClient http;
 
+  // OLAX MT10
   http.begin("http://192.168.0.1/reqproc/proc_get?multi_data=1&cmd=modem_main_state%2Csignalbar%2Cnetwork_type%2Cnv_rsrq");
 
   // Send HTTP GET request
@@ -181,26 +179,86 @@ void HandleDatabaseIssue()
     String payload = http.getString();
     Serial.println(payload);
     http.end();
-    return;
+    return false;
   }
 
   // Free resources
   http.end();
 
-  // Reboot identified OLAX MT10
+  return true;
+}
 
-  WiFiClient client;
-  http.begin(client, "http://192.168.0.1/reqproc/proc_post");
+bool DetectTenda()
+{
+  HTTPClient http;
 
-  // Body to send with HTTP POST
-  String httpRequestData = "goformId=REBOOT_DEVICE";           
-  // Send HTTP POST request
-  int httpPostResponseCode = http.POST(httpRequestData);
+  // Tenda
+  http.begin("http://192.168.0.1/goform/goform_get_cmd_process?multi_data=1&cmd=modem_main_state%2Csignalbar%2Cnetwork_type%2Cnv_rsrq");
 
-  ESP32_MYSQL_DISPLAY1("\r\nReboot requested for OLAX MT10\r\nHTTP Response code:", httpPostResponseCode);
+  // Send HTTP GET request
+  int httpGetResponseCode = http.GET();
+
+  if (httpGetResponseCode == 200)
+  {
+    ESP32_MYSQL_DISPLAY1("Identified Tenda\r\nHTTP Response code:", httpGetResponseCode);
+    String payload = http.getString();
+    Serial.println(payload);
+  }
+  else
+  {
+    ESP32_MYSQL_DISPLAY1("Failed to identify Tenda\r\nHTTP Response code:", httpGetResponseCode);
+    String payload = http.getString();
+    Serial.println(payload);
+    http.end();
+    return false;
+  }
 
   // Free resources
   http.end();
+
+  return true;
+}
+
+void HandleDatabaseIssue()
+{
+  ESP32_MYSQL_DISPLAY0("\r\nDatabase issue. Router is about to be restarted\r\n");
+
+  // Identify router type
+  HTTPClient http;
+  WiFiClient client;
+
+  if (DetectOlaxMT10())
+  {
+    // Reboot identified OLAX MT10
+    http.begin(client, "http://192.168.0.1/reqproc/proc_post");
+
+    // Body to send with HTTP POST
+    String httpRequestData = "goformId=REBOOT_DEVICE";
+  }
+  else if (DetectTenda())
+  {
+    // Reboot identified Tenda
+    http.begin(client, "http://192.168.0.1/goform/goform_set_cmd_process");
+
+    // Body to send with HTTP POST
+    String httpRequestData = "goformId=REBOOT_DEVICE";
+  }
+  else
+  {
+    ESP32_MYSQL_DISPLAY0("Failed to identify router type. Impossible to reboot");
+    // Free resources
+    http.end();
+    return;
+  }
+
+  // Send HTTP POST request
+  int httpPostResponseCode = http.POST(httpRequestData);
+
+  ESP32_MYSQL_DISPLAY1("\r\nReboot requested for identified router\r\nHTTP Response code:", httpPostResponseCode);
+
+  // Free resources
+  http.end();
+
 }
 
 void HandleLoraIssue()
