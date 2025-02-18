@@ -176,8 +176,6 @@ bool DetectOlaxMT10()
   else
   {
     ESP32_MYSQL_DISPLAY1("Failed to identify OLAX MT10\r\nHTTP Response code:", httpGetResponseCode);
-    String payload = http.getString();
-    Serial.println(payload);
     http.end();
     return false;
   }
@@ -193,7 +191,7 @@ bool DetectTenda()
   HTTPClient http;
 
   // Tenda 4G185
-  http.begin("http://192.168.0.1/goform/goform_get_cmd_process?multi_data=1&cmd=modem_main_state%2Csignalbar%2Cnetwork_type%2Cnv_rsrq");
+  http.begin("http://192.168.0.1/goform/goform_get_cmd_process?multi_data=1&cmd=modem_main_state%2Csignalbar%2Cnetwork_type");
 
   // Send HTTP GET request
   int httpGetResponseCode = http.GET();
@@ -207,8 +205,6 @@ bool DetectTenda()
   else
   {
     ESP32_MYSQL_DISPLAY1("Failed to identify Tenda\r\nHTTP Response code:", httpGetResponseCode);
-    String payload = http.getString();
-    Serial.println(payload);
     http.end();
     return false;
   }
@@ -242,8 +238,6 @@ bool DetectMIFI()
   else
   {
     ESP32_MYSQL_DISPLAY1("Failed to identify MIFI\r\nHTTP Response code:", httpPostResponseCode);
-    String payload = http.getString();
-    Serial.println(payload);
     http.end();
     return false;
   }
