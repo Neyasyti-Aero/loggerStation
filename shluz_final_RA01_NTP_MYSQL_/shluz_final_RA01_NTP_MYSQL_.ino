@@ -152,6 +152,7 @@ void HandleWiFiDisconnected()
     if (cntr > 1800)
     {
       Serial.println("\r\nCan't connect to WiFi network. ESP is about to be restarted\r\n");
+      delay(3000);
       ESP.restart();
     }
   }
@@ -303,6 +304,10 @@ void HandleDatabaseIssue()
   else
   {
     ESP32_MYSQL_DISPLAY0("Failed to identify router type. Impossible to reboot");
+    ESP32_MYSQL_DISPLAY0("ESP is about to be restarted...");
+    delay(3000);
+    ESP.restart();
+
     return;
   }
 
@@ -340,6 +345,8 @@ void HandleLoraIssue()
         ESP32_MYSQL_DISPLAY("\r\nConnect failed for LoRa fail's report");
         HandleDatabaseIssue();
       }
+      Serial.println("\r\nESP is about to be restarted...");
+      delay(3000);
       ESP.restart();
     }
   }
@@ -400,6 +407,7 @@ void CheckHealth()
   if (millis() > 24 * 60 * 60 * 1000)
   {
     Serial.print("\r\nProfilactical restart of ESP32...\r\n");
+    delay(3000);
     ESP.restart();
   }
 
