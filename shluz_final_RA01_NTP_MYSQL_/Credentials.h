@@ -10,10 +10,17 @@
 #ifndef Credentials_h
 #define Credentials_h
 
-char ssid[] = "logger-m"; // network SSID (name)
-char pass[] = "qwer1234"; // network password
+#define MAX_SSID_NAMES 2
+char ssid0[] = "logger-m"; // network0 SSID (name) - the highest priority
+char ssid1[] = "logger-r"; // network1 SSID (name)
+char* ssid[MAX_SSID_NAMES] = {ssid0, ssid1};
+char pass[] = "qwer1234"; // network password - stays the same for any router
 
 char user[]         = "root";            // MySQL user login username
 char password[]     = "HvYS0m4KOyyhEjk"; // MySQL user login password
+
+#if MAX_SSID_NAMES < 1
+#error Invalid 'MAX_SSID_NAMES' value!
+#endif
 
 #endif    //Credentials_h

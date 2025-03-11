@@ -21,6 +21,7 @@ uint16_t server_port = 3306;
 char default_database[] = "test";
 char default_table[]    = "logdata";
 ESP32_MySQL_Connection conn((Client *)&client);
+uint8_t ssid_num = 0;
 
 char printBuf[512];
 
@@ -139,23 +140,150 @@ bool testDBquery()
   }
 }
 
+void printMacAddress()
+{
+  // the MAC address of the Wifi shield
+  byte mac[6];
+
+  // print the MAC address:
+  WiFi.macAddress(mac);
+  Serial.print("MAC: ");
+  Serial.print(mac[5], HEX);
+  Serial.print(":");
+  Serial.print(mac[4], HEX);
+  Serial.print(":");
+  Serial.print(mac[3], HEX);
+  Serial.print(":");
+  Serial.print(mac[2], HEX);
+  Serial.print(":");
+  Serial.print(mac[1], HEX);
+  Serial.print(":");
+  Serial.println(mac[0], HEX);
+}
+
+void printEncryptionType(int thisType) {
+  // read the encryption type and print out the name:
+  switch (thisType) {
+    case 5:
+      Serial.println("WEP");
+      break;
+    case 2:
+      Serial.println("WPA");
+      break;
+    case 4:
+      Serial.println("WPA2");
+      break;
+    case 7:
+      Serial.println("None");
+      break;
+    default:
+      Serial.println("Auto");
+      break;
+  }
+}
+
+void listNetworks()
+{
+  // scan for nearby networks:
+  Serial.println("** Scan Networks **");
+  int numSsid = WiFi.scanNetworks();
+  if (numSsid == -1)
+  {
+    Serial.println("Couldn't get a WiFi connection");
+    return;
+  }
+
+  // print the list of networks seen:
+  Serial.print("Number of available WiFi networks: ");
+  Serial.println(numSsid);
+
+  // print the network number and name for each network found:
+  for (int thisNet = 0; thisNet < numSsid; thisNet++)
+  {
+    Serial.print(thisNet + 1);
+    Serial.print(") ");
+    Serial.print(WiFi.SSID(thisNet));
+    Serial.print("\tSignal: ");
+    Serial.print(WiFi.RSSI(thisNet));
+    Serial.print(" dBm");
+    Serial.print("\tEncryption: ");
+    printEncryptionType(WiFi.encryptionType(thisNet));
+  }
+}
+
+// true => found
+bool searchNetwork(char* szSSID)
+{
+  // scan for nearby networks:
+  uint8_t numSsid = WiFi.scanNetworks();
+
+  for (uint8_t thisNet = 0; thisNet < numSsid; thisNet++)
+  {
+    if (strcmp(szSSID, WiFi.SSID(thisNet).c_str()) == 0) // match found
+    {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 void HandleWiFiDisconnected()
 {
   WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, pass);
-  int cntr = 0;
-  while (WiFi.status() != WL_CONNECTED)
+  printMacAddress();
+  
+  for (uint8_t attempt_num = 0; attempt_num < 5; attempt_num++)
   {
-    delay(100);
-    Serial.print(".");
-    cntr++;
-    if (cntr > 1800)
+    Serial.println("================");
+    Serial.print("== ATTEMPT: ");
+    Serial.print(attempt_num + 1);
+    Serial.println(" ==");
+    Serial.println("================");
+    listNetworks();
+    for (uint8_t ssid_temp = 0; ssid_temp < MAX_SSID_NAMES; ssid_temp++)
     {
-      Serial.println("\r\nCan't connect to WiFi network. ESP is about to be restarted\r\n");
-      delay(3000);
-      ESP.restart();
+      Serial.print("Trying to connect: ");
+      Serial.println(ssid[ssid_temp]);
+      if (!searchNetwork(ssid[ssid_temp])) // ssid not found -> skip
+      {
+        Serial.print("Not found SSID (skip): ");
+        Serial.println(ssid[ssid_temp]);
+        continue;
+      }
+      else // found this ssid, try to connect
+      {
+        Serial.print("Found SSID (connect): ");
+        Serial.println(ssid[ssid_temp]);
+      }
+      WiFi.begin(ssid[ssid_temp], pass);
+      int cntr = 0;
+      while (WiFi.status() != WL_CONNECTED)
+      {
+        delay(100);
+        Serial.print(".");
+        cntr++;
+        if (cntr > 1800)
+        {
+          Serial.print("Can't connect to SSID (timeout): ");
+          Serial.println(ssid[ssid_temp]);
+          WiFi.disconnect();
+          break;
+        }
+        // Got WiFi connection
+        // save the ssid num
+        Serial.print("Connected to: ");
+        Serial.println(ssid[ssid_temp]);
+        ssid_num = ssid_temp;
+        return;
+      }
     }
+    delay(10000);
   }
+
+  Serial.println("\r\nCan't connect to WiFi network. ESP is about to be restarted\r\n");
+  delay(3000);
+  ESP.restart();
 }
 
 bool DetectOlaxMT10()
