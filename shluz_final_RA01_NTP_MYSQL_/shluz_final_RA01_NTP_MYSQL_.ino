@@ -783,7 +783,8 @@ void loop()
     memcpy(&telem_packet, &bufferBytes, 24);
     
     int packetRssi = LoRa.packetRssi();
-    sprintf(printBuf, "device_id: %u\r\nmsg_id: %u\r\n\humidity: %f\r\ntemperature: %f\r\npressure: %f\r\nbattery: %f\r\nrssi: %i\r\n", telem_packet.device, telem_packet.msg, telem_packet.hum, telem_packet.tempp, telem_packet.pressr, telem_packet.voltage, packetRssi);
+    float packetSnr = LoRa.packetSnr();
+    sprintf(printBuf, "device_id: %u\r\nmsg_id: %u\r\n\humidity: %f\r\ntemperature: %f\r\npressure: %f\r\nbattery: %f\r\nrssi: %i\r\nsnr: %f\r\n", telem_packet.device, telem_packet.msg, telem_packet.hum, telem_packet.tempp, telem_packet.pressr, telem_packet.voltage, packetRssi, packetSnr);
     Serial.println(printBuf);
 
     if (conn.connectNonBlocking(server, server_port, user, password) != RESULT_FAIL)
