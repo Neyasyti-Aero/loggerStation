@@ -9,17 +9,21 @@
 #include <time.h>
 
 #define ESP32_MYSQL_DEBUG_PORT Serial
-#define _ESP32_MYSQL_LOGLEVEL_ 5
+// max loglevel = 5
+#define _ESP32_MYSQL_LOGLEVEL_ 2
 #include "lib/ESP32_MySQL/ESP32_MySQL.h"
+
+AutoOTA ota("4.6", "https://raw.githubusercontent.com/Neyasyti-Aero/loggerStation/refs/heads/main/project.json");
 
 #define ss 5
 #define rst 14
 #define dio0 2
 
-#define DB_ESP_RESTART 1
+#define DB_ESP_RESTARTED 1
 #define DB_LORA_ERROR 2
 #define DB_LORA_RESTART_TIMEOUT 3
 #define DB_ESP_RESTART_TIMEOUT 4
+#define DB_ESP_RESTART_MANUAL 5
 
 IPAddress server(91, 197, 98, 72);
 uint16_t server_port = 3306;
@@ -36,8 +40,6 @@ unsigned long last_timestamp_ms = 0;
 
 time_t now;
 tm tm;
-
-AutoOTA ota("4.6", "https://raw.githubusercontent.com/b33telgeuse/loggerStation/refs/heads/main/project.json");
 
 struct txPack
 {
@@ -577,8 +579,9 @@ void HandleLoraIssue()
     cntr++;
     if (cntr > 20)
     {
-      Serial.println("\r\nLoRa initialization failed!");
       reportToDatabase(DB_LORA_ERROR);
+      reportToDatabase(DB_ESP_RESTART_MANUAL);
+      Serial.println("\r\nLoRa initialization failed!");
       Serial.println("\r\nESP is about to be restarted...");
       delay(3000);
       ESP.restart();
@@ -688,8 +691,8 @@ void CheckHealth()
     HandleLoraIssue();
   }
 
-  // Restart ESP32 every 24 hours
-  if (millis() > 24 * 60 * 60 * 1000)
+  // Restart ESP32 every 6 hours
+  if (millis() > 6 * 60 * 60 * 1000)
   {
     reportToDatabase(DB_ESP_RESTART_TIMEOUT);
     Serial.print("\r\nProfilactical restart of ESP32...\r\n");
@@ -745,7 +748,7 @@ void setup()
   if (testDBconnection() && testDBquery())
   {
     // log esp restart event
-    reportToDatabase(DB_ESP_RESTART);
+    reportToDatabase(DB_ESP_RESTARTED);
     ESP32_MYSQL_DISPLAY0("All DB tests were passed!");
   }
   else
@@ -821,7 +824,7 @@ void loop()
   Serial.print(".");
 
   if (ota.tick()) {
-    Serial.println("\r\nOTA: ");
+    Serial.print("\r\nOTA: ");
     Serial.println((int)ota.getError());
   }
 }
