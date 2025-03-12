@@ -8,7 +8,7 @@
       "chipFamily": "ESP32",
       "parts": [
         {
-          "path": "https://raw.githubusercontent.com/b33telgeuse/loggerStation/refs/heads/main/firmware.bin",
+          "path": "https://raw.githubusercontent.com/Neyasyti-Aero/loggerStation/refs/heads/main/firmware.bin",
           "offset": 0
         }
       ]
