@@ -13,7 +13,7 @@
 #define _ESP32_MYSQL_LOGLEVEL_ 2
 #include "lib/ESP32_MySQL/ESP32_MySQL.h"
 
-AutoOTA ota("5.0", "https://raw.githubusercontent.com/Neyasyti-Aero/loggerStation/refs/heads/main/project.json");
+AutoOTA ota("5.1", "https://raw.githubusercontent.com/Neyasyti-Aero/loggerStation/refs/heads/main/project.json");
 
 #define ss 5
 #define rst 14
@@ -54,10 +54,10 @@ struct txPack
 ESP32_MySQL_Query sql_query = ESP32_MySQL_Query(&conn);
 uint32_t chipId = 0;
 
-void insertData(uint32_t device_id, uint32_t msg_id, const char* time, float humidity, float temperature, float battery, int RSSII)
+void insertData(uint32_t device_id, uint32_t msg_id, const char* time, float humidity, float temperature, float battery, int RSSII, float snr)
 {
   char query[512];
-  sprintf(query, "INSERT INTO `test`.`logdata` (`device_id`, `msg_id`, `time`, `humidity`, `temperature`, `battery`, `rssi`, `station_id`, `chip_id`) VALUES ('%i', '%i', CURRENT_TIMESTAMP, '%f', '%f', '%f', '%i', '%i', '%i')", device_id, msg_id, humidity, temperature, battery, RSSII, 32, chipId);
+  sprintf(query, "INSERT INTO `test`.`logdata` (`device_id`, `msg_id`, `time`, `humidity`, `temperature`, `battery`, `rssi`, `snr`, `station_id`, `chip_id`) VALUES ('%i', '%i', CURRENT_TIMESTAMP, '%f', '%f', '%f', '%i', '%f', '%i', '%i')", device_id, msg_id, humidity, temperature, battery, RSSII, snr, 51, chipId);
 
   if (!conn.connected())
   {
@@ -157,7 +157,7 @@ void reportToDatabase(uint8_t code)
   if (conn.connectNonBlocking(server, server_port, user, password) != RESULT_FAIL)
   {
     delay(500);
-    insertData(0, code, "CURRENT_TIMESTAMP", 0, 0, 0, 0);
+    insertData(0, code, "CURRENT_TIMESTAMP", 0, 0, 0, 0, 0);
     conn.close();
   }
   else
@@ -812,7 +812,7 @@ void loop()
     if (conn.connectNonBlocking(server, server_port, user, password) != RESULT_FAIL)
     {
       delay(50);
-      insertData(telem_packet.device, telem_packet.msg, "CURRENT_TIMESTAMP", telem_packet.hum, telem_packet.tempp, telem_packet.voltage, packetRssi);
+      insertData(telem_packet.device, telem_packet.msg, "CURRENT_TIMESTAMP", telem_packet.hum, telem_packet.tempp, telem_packet.voltage, packetRssi, packetSnr);
       conn.close();
     }
     else
@@ -823,7 +823,7 @@ void loop()
   }
 
   delay(100);
-  Serial.print(".");
+  //Serial.print(".");
 
   if (ota.tick()) {
     Serial.print("\r\nOTA: ");
