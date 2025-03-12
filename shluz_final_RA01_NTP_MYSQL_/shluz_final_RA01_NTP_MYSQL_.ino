@@ -13,7 +13,8 @@
 #define _ESP32_MYSQL_LOGLEVEL_ 2
 #include "lib/ESP32_MySQL/ESP32_MySQL.h"
 
-AutoOTA ota("5.1", "https://raw.githubusercontent.com/Neyasyti-Aero/loggerStation/refs/heads/main/project.json");
+#define VERSION_INT 52
+AutoOTA ota("5.2", "https://raw.githubusercontent.com/Neyasyti-Aero/loggerStation/refs/heads/main/project.json");
 
 #define ss 5
 #define rst 14
@@ -57,7 +58,7 @@ uint32_t chipId = 0;
 void insertData(uint32_t device_id, uint32_t msg_id, const char* time, float humidity, float temperature, float battery, int RSSII, float snr)
 {
   char query[512];
-  sprintf(query, "INSERT INTO `test`.`logdata` (`device_id`, `msg_id`, `time`, `humidity`, `temperature`, `battery`, `rssi`, `snr`, `station_id`, `chip_id`) VALUES ('%i', '%i', CURRENT_TIMESTAMP, '%f', '%f', '%f', '%i', '%f', '%i', '%i')", device_id, msg_id, humidity, temperature, battery, RSSII, snr, 51, chipId);
+  sprintf(query, "INSERT INTO `test`.`logdata` (`device_id`, `msg_id`, `time`, `humidity`, `temperature`, `battery`, `rssi`, `snr`, `station_id`, `chip_id`) VALUES ('%i', '%i', CURRENT_TIMESTAMP, '%f', '%f', '%f', '%i', '%f', '%i', '%i')", device_id, msg_id, humidity, temperature, battery, RSSII, snr, VERSION_INT, chipId);
 
   if (!conn.connected())
   {
@@ -731,7 +732,7 @@ void setup()
   Serial.print("Connecting to WiFi network...");
   HandleWiFiDisconnected();
 
-  delay(3000); // make a small pause
+  delay(5000); // make a small pause
 
   // No restart => Successful connection to WiFi network
   ESP32_MYSQL_DISPLAY1("\r\nConnected to WiFi. My local IP-address is:", WiFi.localIP());
@@ -757,6 +758,15 @@ void setup()
   {
     ESP32_MYSQL_DISPLAY0("DB test were NOT passed!");
     HandleDatabaseIssue();
+  }
+
+  // Check for FW updates AGAIN
+  should_update_fw = ota.checkUpdate(&ver, &notes);
+  Serial.println(ver);
+  Serial.println(notes);
+  if (should_update_fw) {
+    Serial.println("OTA: Firmware is about to be updated");
+    ota.updateNow();
   }
 
   // Init LoRa
@@ -825,7 +835,8 @@ void loop()
   delay(100);
   //Serial.print(".");
 
-  if (ota.tick()) {
+  if (ota.tick())
+  {
     Serial.print("\r\nOTA: ");
     Serial.println((int)ota.getError());
   }
