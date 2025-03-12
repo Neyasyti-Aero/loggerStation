@@ -13,7 +13,7 @@
 #define _ESP32_MYSQL_LOGLEVEL_ 2
 #include "lib/ESP32_MySQL/ESP32_MySQL.h"
 
-AutoOTA ota("4.6", "https://raw.githubusercontent.com/Neyasyti-Aero/loggerStation/refs/heads/main/project.json");
+AutoOTA ota("5.0", "https://raw.githubusercontent.com/Neyasyti-Aero/loggerStation/refs/heads/main/project.json");
 
 #define ss 5
 #define rst 14
@@ -730,6 +730,8 @@ void setup()
   // ESP32 will be restarted if unsuccessful
   Serial.print("Connecting to WiFi network...");
   HandleWiFiDisconnected();
+
+  delay(3000); // make a small pause
 
   // No restart => Successful connection to WiFi network
   ESP32_MYSQL_DISPLAY1("\r\nConnected to WiFi. My local IP-address is:", WiFi.localIP());
