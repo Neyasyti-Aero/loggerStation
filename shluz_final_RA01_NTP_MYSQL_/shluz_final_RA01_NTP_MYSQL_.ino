@@ -6,6 +6,7 @@
 #include "lib/LoRa/LoRa.h"
 #include <WiFiUdp.h>
 #include <HTTPClient.h>
+#include <time.h>
 
 #define ESP32_MYSQL_DEBUG_PORT Serial
 #define _ESP32_MYSQL_LOGLEVEL_ 5
@@ -26,6 +27,10 @@ uint8_t ssid_num = 0;
 char printBuf[512];
 
 unsigned long last_packet_ms = 0;
+unsigned long last_timestamp_ms = 0;
+
+time_t now;
+tm tm;
 
 AutoOTA ota("4.6", "https://raw.githubusercontent.com/b33telgeuse/loggerStation/refs/heads/main/project.json");
 
@@ -489,8 +494,55 @@ void HandleLoraIssue()
   LoRa.enableCrc();
 }
 
+void showTime()
+{
+  time(&now);
+  localtime_r(&now, &tm);
+
+  if (tm.tm_mday < 10)
+  {
+    Serial.print("0");
+  }
+  Serial.print(tm.tm_mday);
+  Serial.print(".");
+  if (tm.tm_mon < 10)
+  {
+    Serial.print("0");
+  }
+  Serial.print(tm.tm_mon + 1);
+  Serial.print(".");
+  Serial.print(tm.tm_year + 1900);
+  Serial.print(" ");
+  if (tm.tm_hour < 10)
+  {
+    Serial.print("0");
+  }
+  Serial.print(tm.tm_hour);
+  Serial.print(":");
+  if (tm.tm_min < 10)
+  {
+    Serial.print("0");
+  }
+  Serial.print(tm.tm_min);
+  Serial.print(":");
+  if (tm.tm_sec < 10)
+  {
+    Serial.print("0");
+  }
+  Serial.print(tm.tm_sec);
+}
+
 void CheckHealth()
 {
+  // Print current datetime every N minutes
+  if (millis() - last_timestamp_ms > 1 * 60 * 1000 || millis() < last_timestamp_ms)
+  {
+    Serial.println("");
+    showTime();
+    last_timestamp_ms = millis();
+    Serial.println("");
+  }
+
   // Check network health
   if (WiFi.status() != WL_CONNECTED)
   {
@@ -561,6 +613,9 @@ void setup()
   // Print the current firmware version
   Serial.print("Version: ");
   Serial.println(ota.version());
+
+  // Configure NTP
+  configTzTime("MSK-3", "0.ru.pool.ntp.org", "1.ru.pool.ntp.org", "2.ru.pool.ntp.org");
 
   // Connect to WiFi network
   // ESP32 will be restarted if unsuccessful
