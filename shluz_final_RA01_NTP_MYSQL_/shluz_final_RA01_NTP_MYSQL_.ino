@@ -16,6 +16,11 @@
 #define rst 14
 #define dio0 2
 
+#define DB_ESP_RESTART 1
+#define DB_LORA_ERROR 2
+#define DB_LORA_RESTART_TIMEOUT 3
+#define DB_ESP_RESTART_TIMEOUT 4
+
 IPAddress server(91, 197, 98, 72);
 uint16_t server_port = 3306;
 
@@ -142,6 +147,21 @@ bool testDBquery()
   {
     ESP32_MYSQL_DISPLAY("\r\nDatabase test query failed!");
     return false;
+  }
+}
+
+void reportToDatabase(uint8_t code)
+{
+  if (conn.connectNonBlocking(server, server_port, user, password) != RESULT_FAIL)
+  {
+    delay(500);
+    insertData(0, code, "CURRENT_TIMESTAMP", 0, 0, 0, 0);
+    conn.close();
+  }
+  else
+  {
+    ESP32_MYSQL_DISPLAY("\r\nConnect failed for LoRa fail's report");
+    HandleDatabaseIssue();
   }
 }
 
@@ -558,17 +578,7 @@ void HandleLoraIssue()
     if (cntr > 20)
     {
       Serial.println("\r\nLoRa initialization failed!");
-      if (conn.connectNonBlocking(server, server_port, user, password) != RESULT_FAIL)
-      {
-        delay(500);
-        insertData(0, 0, "CURRENT_TIMESTAMP", 0, 0, 0, 0);
-        conn.close();
-      }
-      else
-      {
-        ESP32_MYSQL_DISPLAY("\r\nConnect failed for LoRa fail's report");
-        HandleDatabaseIssue();
-      }
+      reportToDatabase(DB_LORA_ERROR);
       Serial.println("\r\nESP is about to be restarted...");
       delay(3000);
       ESP.restart();
@@ -580,6 +590,9 @@ void HandleLoraIssue()
   LoRa.setSyncWord(0x12);
   LoRa.setSpreadingFactor(12);
   LoRa.setGain(6);
+  // doesn't work with old loggers => commented out
+  // it has to be enabled for both sides
+  //LoRa.enableLowDataRateOptimize();
   LoRa.receive();
   LoRa.setCodingRate4(8);
   LoRa.enableCrc();
@@ -670,6 +683,7 @@ void CheckHealth()
   // If the last packet recieved was recieved more than 20 minuted ago => LoRa should restart
   if (millis() - last_packet_ms > 20 * 60 * 1000 || millis() < last_packet_ms)
   {
+    reportToDatabase(DB_LORA_RESTART_TIMEOUT);
     Serial.print("LoRa restart required...");
     HandleLoraIssue();
   }
@@ -677,6 +691,7 @@ void CheckHealth()
   // Restart ESP32 every 24 hours
   if (millis() > 24 * 60 * 60 * 1000)
   {
+    reportToDatabase(DB_ESP_RESTART_TIMEOUT);
     Serial.print("\r\nProfilactical restart of ESP32...\r\n");
     delay(3000);
     ESP.restart();
@@ -729,7 +744,9 @@ void setup()
   // Test database availability
   if (testDBconnection() && testDBquery())
   {
-    ESP32_MYSQL_DISPLAY0("Both DB tests were passed!");
+    // log esp restart event
+    reportToDatabase(DB_ESP_RESTART);
+    ESP32_MYSQL_DISPLAY0("All DB tests were passed!");
   }
   else
   {
