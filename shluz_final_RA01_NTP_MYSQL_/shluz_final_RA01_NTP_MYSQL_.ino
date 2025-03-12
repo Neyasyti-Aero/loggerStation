@@ -169,21 +169,16 @@ void printMacAddress()
 void printEncryptionType(int thisType) {
   // read the encryption type and print out the name:
   switch (thisType) {
-    case 5:
-      Serial.println("WEP");
-      break;
-    case 2:
-      Serial.println("WPA");
-      break;
-    case 4:
-      Serial.println("WPA2");
-      break;
-    case 7:
-      Serial.println("None");
-      break;
-    default:
-      Serial.println("Auto");
-      break;
+    case WIFI_AUTH_OPEN:            Serial.println("open"); break;
+    case WIFI_AUTH_WEP:             Serial.println("WEP"); break;
+    case WIFI_AUTH_WPA_PSK:         Serial.println("WPA"); break;
+    case WIFI_AUTH_WPA2_PSK:        Serial.println("WPA2"); break;
+    case WIFI_AUTH_WPA_WPA2_PSK:    Serial.println("WPA+WPA2"); break;
+    case WIFI_AUTH_WPA2_ENTERPRISE: Serial.println("WPA2-EAP"); break;
+    case WIFI_AUTH_WPA3_PSK:        Serial.println("WPA3"); break;
+    case WIFI_AUTH_WPA2_WPA3_PSK:   Serial.println("WPA2+WPA3"); break;
+    case WIFI_AUTH_WAPI_PSK:        Serial.println("WAPI"); break;
+    default:                        Serial.println("unknown");
   }
 }
 
@@ -191,8 +186,14 @@ void listNetworks()
 {
   // scan for nearby networks:
   Serial.println("** Scan Networks **");
-  int numSsid = WiFi.scanNetworks();
-  if (numSsid == -1)
+  /*
+  int16_t scanNetworks(
+    bool async = false, bool show_hidden = false, bool passive = false, uint32_t max_ms_per_chan = 300, uint8_t channel = 0, const char *ssid = nullptr,
+    const uint8_t *bssid = nullptr
+  );
+  */
+  int numSsid = WiFi.scanNetworks(false, false, false, 300, 0, nullptr, nullptr);
+  if (numSsid == WIFI_SCAN_FAILED)
   {
     Serial.println("Couldn't get a WiFi connection");
     return;
@@ -208,6 +209,8 @@ void listNetworks()
     Serial.print(thisNet + 1);
     Serial.print(") ");
     Serial.print(WiFi.SSID(thisNet));
+    Serial.print("\tChannel: ");
+    Serial.print(WiFi.channel(thisNet));
     Serial.print("\tSignal: ");
     Serial.print(WiFi.RSSI(thisNet));
     Serial.print(" dBm");
@@ -235,7 +238,13 @@ bool searchNetwork(char* szSSID)
 
 void HandleWiFiDisconnected()
 {
+  // Do some kind of "restart"
+  WiFi.disconnect();
+  WiFi.mode(WIFI_OFF);
   WiFi.mode(WIFI_STA);
+
+  delay(100);
+  Serial.println("");
   printMacAddress();
   
   for (uint8_t attempt_num = 0; attempt_num < 5; attempt_num++)
@@ -245,13 +254,18 @@ void HandleWiFiDisconnected()
     Serial.print(attempt_num + 1);
     Serial.println(" ==");
     Serial.println("================");
+
     listNetworks();
+    WiFi.scanDelete();
+
     for (uint8_t ssid_temp = 0; ssid_temp < MAX_SSID_NAMES; ssid_temp++)
     {
       Serial.print("Trying to connect: ");
       Serial.println(ssid[ssid_temp]);
+
       if (!searchNetwork(ssid[ssid_temp])) // ssid not found -> skip
       {
+        WiFi.scanDelete();
         Serial.print("Not found SSID (skip): ");
         Serial.println(ssid[ssid_temp]);
         continue;
@@ -261,6 +275,7 @@ void HandleWiFiDisconnected()
         Serial.print("Found SSID (connect): ");
         Serial.println(ssid[ssid_temp]);
       }
+      
       WiFi.begin(ssid[ssid_temp], pass);
       int cntr = 0;
       while (WiFi.status() != WL_CONNECTED)
@@ -275,6 +290,7 @@ void HandleWiFiDisconnected()
           WiFi.disconnect();
           break;
         }
+
         // Got WiFi connection
         // save the ssid num
         Serial.print("Connected to: ");
@@ -283,6 +299,7 @@ void HandleWiFiDisconnected()
         return;
       }
     }
+
     delay(10000);
   }
 
@@ -382,6 +399,36 @@ bool DetectMIFI()
   return true;
 }
 
+// Detect LTE 4G CPE
+bool Detect4GCPE()
+{
+  HTTPClient http;
+  WiFiClient client;
+
+  http.begin(client, "http://192.168.199.1/goform/goform_get_cmd_process?multi_data=1&isTest=false&cmd=modem_main_state&_=1741741559430");
+
+  // Send HTTP POST request
+  int httpPostResponseCode = http.GET();
+
+  if (httpPostResponseCode == 200)
+  {
+    ESP32_MYSQL_DISPLAY1("Identified 4G CPE\r\nHTTP Response code:", httpPostResponseCode);
+    String payload = http.getString();
+    Serial.println(payload);
+  }
+  else
+  {
+    ESP32_MYSQL_DISPLAY1("Failed to identify 4G CPE\r\nHTTP Response code:", httpPostResponseCode);
+    http.end();
+    return false;
+  }
+
+  // Free resources
+  http.end();
+
+  return true;
+}
+
 void HandleDatabaseIssue()
 {
   ESP32_MYSQL_DISPLAY0("\r\nDatabase issue. Router is about to be restarted\r\n");
@@ -427,12 +474,56 @@ void HandleDatabaseIssue()
     // {"session":"a3777608-f197-472c-970a-3036831cf5f6","reply":"ok"}
     // parse session id
     String sessionId = payload.substring(12, 48);
+    ESP32_MYSQL_DISPLAY1("Got session id:", sessionId);
 
     http.end();
     http.begin(client, "http://192.168.100.1/himiapi/json");
 
     httpRequestData = String("{cmdid: \"rebootcmd\", params: \"reboot\", sessionId: \"") + sessionId + String("\"}");
     Serial.println(httpRequestData);
+  }
+  else if (Detect4GCPE())
+  {
+    // login
+    http.begin(client, "http://192.168.199.1/goform/goform_set_cmd_process");
+
+    // Body to send with HTTP POST
+    httpRequestData = String("isTest=false&goformId=LOGIN&password=YWRtaW4KYWRtaW4%3D");
+    const char* headers[] = {"Set-Cookie"};
+    http.collectHeaders(headers, sizeof(headers)/ sizeof(headers[0]));
+    http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+
+    // Send HTTP POST request
+    int httpPostResponseCode = http.POST(httpRequestData);
+    
+    ESP32_MYSQL_DISPLAY1("Logged in, status code:", httpPostResponseCode);
+    Serial.println(http.getString());
+
+    if (httpPostResponseCode == 200)
+    {
+      String cookie = http.header("Set-Cookie");
+      Serial.println(cookie);
+
+      if (cookie.length() < 35 || cookie.indexOf(';') < 12)
+      {
+        ESP32_MYSQL_DISPLAY1("Error, got invalid Set-Cookie header with length:", cookie.length());
+        ESP32_MYSQL_DISPLAY1("Error, got invalid Set-Cookie header, index found:", cookie.indexOf(';'));
+        http.end();
+        return;
+      }
+      // JSESSIONID=f41ottp186n9mkmcsyg3dvnw;Path=/
+      // JSESSIONID=zewe05zl41lg1leozqwia74eh;Path=/
+      // parse session id
+      String sessionId = cookie.substring(11, cookie.indexOf(';'));
+      ESP32_MYSQL_DISPLAY1("Got session id:", sessionId);
+
+      http.end();
+      http.begin(client, "http://192.168.199.1/goform/goform_set_cmd_process");
+
+      http.addHeader("Cookie", (String("JSESSIONID=") + sessionId).c_str());
+      http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+      httpRequestData = String("isTest=false&goformId=REBOOT_DEVICE");
+    }
   }
   else
   {
@@ -535,7 +626,7 @@ void showTime()
 void CheckHealth()
 {
   // Print current datetime every N minutes
-  if (millis() - last_timestamp_ms > 1 * 60 * 1000 || millis() < last_timestamp_ms)
+  if (millis() - last_timestamp_ms > 1 * 60 * 1000 || millis() < last_timestamp_ms || last_timestamp_ms == 0)
   {
     Serial.println("");
     showTime();
@@ -643,11 +734,16 @@ void setup()
   else
   {
     ESP32_MYSQL_DISPLAY0("DB test were NOT passed!");
+    HandleDatabaseIssue();
   }
 
   // Init LoRa
   // ESP32 will be restarted if unsuccessful
   HandleLoraIssue();
+
+  Serial.println("");
+  showTime();
+  Serial.println("");
 
   // setup completed
   Serial.print("Waiting for packets...");
@@ -661,6 +757,9 @@ void loop()
 
   if (packetSize)
   {
+    Serial.println("");
+    showTime();
+    Serial.println("");
     if (packetSize % sizeof(telem_packet) != 0)
     {
       sprintf(printBuf, "\r\nReceived new packet, size = %u bytes\r\nThe size is incorrect!\r\nLora is about to be restarted...", packetSize);
