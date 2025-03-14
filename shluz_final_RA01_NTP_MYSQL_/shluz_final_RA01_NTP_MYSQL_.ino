@@ -13,8 +13,8 @@
 #define _ESP32_MYSQL_LOGLEVEL_ 2
 #include "lib/ESP32_MySQL/ESP32_MySQL.h"
 
-#define VERSION_INT 53
-AutoOTA ota("5.3", "https://raw.githubusercontent.com/Neyasyti-Aero/loggerStation/refs/heads/main/project.json");
+#define VERSION_INT 54
+AutoOTA ota("5.4", "https://raw.githubusercontent.com/Neyasyti-Aero/loggerStation/refs/heads/main/project.json");
 
 #define ss 5
 #define rst 14
@@ -25,6 +25,7 @@ AutoOTA ota("5.3", "https://raw.githubusercontent.com/Neyasyti-Aero/loggerStatio
 #define DB_LORA_RESTART_TIMEOUT 3
 #define DB_ESP_RESTART_TIMEOUT 4
 #define DB_ESP_RESTART_MANUAL 5
+#define DB_WIFI_RECONNECTED 6
 
 IPAddress server(91, 197, 98, 72);
 uint16_t server_port = 3306;
@@ -158,7 +159,7 @@ void reportToDatabase(uint8_t code)
   if (conn.connectNonBlocking(server, server_port, user, password) != RESULT_FAIL)
   {
     delay(500);
-    insertData(0, code, "CURRENT_TIMESTAMP", 0, 0, 0, 0, 0);
+    insertData(0, code, "CURRENT_TIMESTAMP", 0, 0, 0, ssid_num, 0);
     conn.close();
   }
   else
@@ -205,8 +206,11 @@ void printEncryptionType(int thisType) {
   }
 }
 
-void listNetworks()
+// returns count of matches with ssid names array
+uint8_t listNetworks()
 {
+  uint8_t retval = 0;
+
   // scan for nearby networks:
   Serial.println("** Scan Networks **");
   /*
@@ -219,7 +223,7 @@ void listNetworks()
   if (numSsid == WIFI_SCAN_FAILED)
   {
     Serial.println("Couldn't get a WiFi connection");
-    return;
+    return 0;
   }
 
   // print the list of networks seen:
@@ -240,6 +244,21 @@ void listNetworks()
     Serial.print("\tEncryption: ");
     printEncryptionType(WiFi.encryptionType(thisNet));
   }
+
+  // count matches
+  for (uint8_t ssid_temp = 0; ssid_temp < MAX_SSID_NAMES; ssid_temp++)
+  {
+    for (int thisNet = 0; thisNet < numSsid; thisNet++)
+    {
+      if (strcmp(ssid[ssid_temp], WiFi.SSID(thisNet).c_str()) == 0)
+      {
+        retval++;
+        break; // count distinct ssid
+      }
+    }
+  }
+
+  return retval;
 }
 
 // true => found
@@ -278,8 +297,11 @@ void HandleWiFiDisconnected()
     Serial.println(" ==");
     Serial.println("================");
 
-    listNetworks();
+    uint8_t matches_count = listNetworks();
     WiFi.scanDelete();
+
+    Serial.print("Matches found: ");
+    Serial.println(matches_count);
 
     for (uint8_t ssid_temp = 0; ssid_temp < MAX_SSID_NAMES; ssid_temp++)
     {
@@ -288,7 +310,7 @@ void HandleWiFiDisconnected()
 
       // Had been connected to this WiFi, but lost connection
       // Need to skip this ssid
-      if (ssid_temp == ssid_num)
+      if (ssid_temp == ssid_num && matches_count > 1)
       {
         Serial.print("Was connected to, but lost connection (skip): ");
         Serial.println(ssid[ssid_temp]);
@@ -688,6 +710,9 @@ void CheckHealth()
       HandleDatabaseIssue();
       return;
     }
+    // Database connection OK
+    // Report WiFi reconnection
+    reportToDatabase(DB_WIFI_RECONNECTED);
   }
 
   // All network-related tests were passed
