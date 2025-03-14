@@ -1,8 +1,8 @@
 {
   "name": "loggerStation",
   "about": "collecting data from loggers",
-  "version": "5.2",
-  "notes": "13.03.2025 The Flying Cat",
+  "version": "5.3",
+  "notes": "14.03.2025 The Flying Cat",
   "builds": [
     {
       "chipFamily": "ESP32",

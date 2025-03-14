@@ -13,8 +13,8 @@
 #define _ESP32_MYSQL_LOGLEVEL_ 2
 #include "lib/ESP32_MySQL/ESP32_MySQL.h"
 
-#define VERSION_INT 52
-AutoOTA ota("5.2", "https://raw.githubusercontent.com/Neyasyti-Aero/loggerStation/refs/heads/main/project.json");
+#define VERSION_INT 53
+AutoOTA ota("5.3", "https://raw.githubusercontent.com/Neyasyti-Aero/loggerStation/refs/heads/main/project.json");
 
 #define ss 5
 #define rst 14
