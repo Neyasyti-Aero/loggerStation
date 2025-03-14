@@ -32,7 +32,7 @@ uint16_t server_port = 3306;
 char default_database[] = "test";
 char default_table[]    = "logdata";
 ESP32_MySQL_Connection conn((Client *)&client);
-uint8_t ssid_num = 0;
+uint8_t ssid_num = 255;
 
 char printBuf[512];
 
@@ -285,6 +285,15 @@ void HandleWiFiDisconnected()
     {
       Serial.print("Trying to connect: ");
       Serial.println(ssid[ssid_temp]);
+
+      // Had been connected to this WiFi, but lost connection
+      // Need to skip this ssid
+      if (ssid_temp == ssid_num)
+      {
+        Serial.print("Was connected to, but lost connection (skip): ");
+        Serial.println(ssid[ssid_temp]);
+        continue;
+      }
 
       if (!searchNetwork(ssid[ssid_temp])) // ssid not found -> skip
       {
